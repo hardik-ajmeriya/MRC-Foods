@@ -1,11 +1,13 @@
 # MRC Foods - College Canteen Food Ordering App
 
-A modern, responsive web application for college canteen food ordering built with React, Vite, Tailwind CSS, and Firebase. Features real-time order tracking, student authentication, and a mobile-first PWA design.
+A modern, professional web application for college canteen food ordering built with React, Vite, Tailwind CSS, and Firebase. Features real-time order tracking, student authentication, staff dashboard, and a mobile-first PWA design.
 
 ## Features
 
-- **Modern UI/UX**: Clean, mobile-first design with Swiggy-inspired theme
-- **Real-time Orders**: Firebase Firestore integration for live order updates
+- **Professional UI/UX**: Clean, mobile-first design with professional styling
+- **Real-time Orders**: Socket.IO integration for instant order updates
+- **Staff Dashboard**: Complete order management system for canteen staff
+- **Order Tracking**: Live order status updates for customers
 - **Student Authentication**: Firebase Auth for secure student login
 - **Progressive Web App (PWA)**: Installable app with offline capabilities
 - **Responsive Design**: Optimized for mobile devices with desktop support
@@ -16,26 +18,42 @@ A modern, responsive web application for college canteen food ordering built wit
 
 - **Frontend**: React 19.1.0 with Vite 7.0.6
 - **Styling**: Tailwind CSS 3.4.0 with PostCSS
-- **Backend**: Firebase 10.0.0 (Firestore, Auth)
+- **Real-time**: Socket.IO for live updates
+- **Backend**: Node.js with Express and MongoDB
+- **Authentication**: Firebase Auth
 - **PWA**: Service Worker with App Manifest
 - **Development**: ESLint, Prettier for code quality
 
 ## Application Overview
 
 ### Home Page
-- Clean white background with orange/blue branding
+- Clean white background with professional branding
 - 4x2 grid layout for food categories
 - Large square category images (96x96px)
 - Interactive category selection with visual feedback
 - Food item cards with images, ratings, and pricing
 
+### Staff Dashboard
+- Professional order management interface
+- Real-time order status updates
+- Order filtering and search capabilities
+- Status tracking with progress indicators
+- Connection status monitoring
+
+### Customer Order Tracking
+- Live order status updates without page refresh
+- Professional timeline visualization
+- Progress tracking with completion percentages
+- Real-time notifications of status changes
+- Mobile-optimized tracking interface
+
 ### Features Implemented
 - Splash screen with modern gradient design
 - Category-based food browsing
-- Real-time image display
+- Real-time Socket.IO integration
 - Mobile-responsive layout
-- Bottom navigation bar
-- Search functionality (UI ready)
+- Professional UI without emoji distractions
+- Staff and customer role separation
 
 ## Project Structure
 
@@ -57,15 +75,22 @@ MRC_Foods/
 │   ├── components/            # Reusable UI components
 │   ├── pages/
 │   │   ├── Splash.jsx         # App splash screen
-│   │   └── Home.jsx           # Main home page
+│   │   ├── Home.jsx           # Main home page
+│   │   ├── StaffDashboard.jsx # Staff order management dashboard
+│   │   └── OrderStatus.jsx    # Customer order tracking page
 │   ├── services/
 │   │   └── orders.js          # Firebase order management
 │   ├── styles/
 │   │   └── index.css          # Global styles with Tailwind
 │   ├── utils/
 │   │   └── orderStatus.js     # Order status enums and flow
-│   ├── App.jsx                # Main app component
+│   ├── App.jsx                # Main app component with routing
 │   └── main.jsx               # App entry point
+├── backend/                   # Node.js backend server
+│   ├── models/               # MongoDB models
+│   ├── routes/               # API routes
+│   ├── middleware/           # Custom middleware
+│   └── server.js            # Express server with Socket.IO
 ├── .env.example               # Environment variables template
 ├── tailwind.config.js         # Tailwind configuration
 ├── postcss.config.cjs         # PostCSS configuration
@@ -99,31 +124,56 @@ MRC_Foods/
    ```
    Add your Firebase configuration to `.env.local`
 
-4. **Start development server**
+4. **Start backend server**
    ```bash
+   cd backend
+   npm install
+   npm start
+   ```
+
+5. **Start frontend development server**
+   ```bash
+   cd .. 
    npm run dev
    ```
 
-5. **Open in browser**
+6. **Open in browser**
    Navigate to `http://localhost:5174`
 
 ### Available Scripts
 
+**Frontend:**
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
 - `npm run format` - Format code with Prettier
 
-## Firebase Configuration
+**Backend:**
+- `npm start` - Start Express server with Socket.IO
+- `npm run dev` - Start server with nodemon for development
 
-### Required Services
-- **Firestore Database**: For storing orders and menu items
-- **Authentication**: For student login system
-- **Hosting** (optional): For deployment
+## Configuration
 
-### Environment Variables
-Create `.env.local` with your Firebase config:
+### Backend Setup
+The application requires both MongoDB and Socket.IO server:
+
+**Backend Environment Variables (backend/.env):**
+```env
+MONGODB_URI=mongodb://localhost:27017/mrc_foods
+PORT=5000
+NODE_ENV=development
+```
+
+**Socket.IO Configuration:**
+- Real-time communication between staff dashboard and customer tracking
+- Room-based updates (staff room, customer room)
+- Automatic order status broadcasting
+- Connection status monitoring
+
+### Firebase Configuration (Optional)
+
+**Frontend Environment Variables (.env.local):**
 ```env
 VITE_FIREBASE_API_KEY=your_api_key
 VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
@@ -133,40 +183,54 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 ```
 
-## Order Management
+## Order Management System
 
 ### Order Status Flow
-The app uses a comprehensive order status system defined in `/src/utils/orderStatus.js`:
+The app uses a professional order status system with real-time updates:
 
-1. **PENDING** - Order placed, awaiting confirmation
-2. **CONFIRMED** - Order confirmed by staff
-3. **PREPARING** - Food being prepared
-4. **READY** - Order ready for pickup
-5. **COMPLETED** - Order delivered/picked up
-6. **CANCELLED** - Order cancelled
+1. **PENDING** - Order placed, awaiting staff confirmation
+2. **ACCEPTED** - Order confirmed by staff, preparation starting
+3. **PREPARING** - Food being prepared by kitchen staff
+4. **READY** - Order ready for customer pickup
+5. **COMPLETED** - Order successfully delivered/picked up
+6. **CANCELLED** - Order cancelled by staff or system
 
-### Firebase Services
-- `createOrder(orderData)` - Create new order in Firestore
-- `listenToOrders(callback)` - Real-time order updates
-- Order schema includes: student info, items, status, timestamps
+### Real-time Features
+- **Socket.IO Integration**: Instant status updates across all connected clients
+- **Staff Dashboard**: Live order management with status controls
+- **Customer Tracking**: Real-time progress updates without page refresh
+- **Connection Monitoring**: Visual indicators for live update status
+- **Professional UI**: Clean interface without emoji distractions
+
+### API Endpoints
+- `GET /api/orders` - Retrieve all orders
+- `GET /api/orders/track/:id` - Track specific order
+- `PUT /api/orders/:id/status` - Update order status
+- `POST /api/orders` - Create new order
+- Real-time Socket.IO events for instant updates
 
 ## Design System
 
 ### Color Scheme
-- **Primary**: Orange (#F97316) - Swiggy-inspired
-- **Secondary**: Blue (#2563EB) - MRC branding
-- **Success**: Green (#10B981) - Add buttons
-- **Background**: White (#FFFFFF) - Clean, modern
+- **Primary**: Green (#10B981) - Professional, clean branding
+- **Secondary**: Blue (#2563EB) - Action buttons and highlights
+- **Success**: Green variations for completed states
+- **Warning**: Orange/Yellow for pending states
+- **Error**: Red for cancelled/error states
+- **Background**: White (#FFFFFF) - Clean, professional appearance
 
 ### Typography
-- **Headers**: Bold, prominent food names
-- **Body**: Clean, readable descriptions
-- **Accent**: Orange pricing, ratings
+- **Headers**: Bold, professional styling without decorative elements
+- **Body**: Clean, readable descriptions and content
+- **Status Indicators**: Clear, text-based status representations
+- **Buttons**: Professional action labels without emoji distractions
 
-### Components
-- **Category Icons**: 96x96px square images with rounded corners
-- **Food Cards**: Horizontal layout with image, details, and add button
-- **Navigation**: Fixed bottom bar with Home/Cart/Track
+### Professional Components
+- **Status Icons**: Text-based abbreviations (P, A, R, RDY, C, X)
+- **Progress Indicators**: Clean percentage-based progress bars
+- **Connection Status**: Professional "Live Updates" indicators
+- **Action Buttons**: Clear, descriptive button text
+- **Navigation**: Clean, text-based navigation elements
 
 ## PWA Features
 
@@ -180,27 +244,30 @@ The app uses a comprehensive order status system defined in `/src/utils/orderSta
 ### Completed
 - [x] Project setup and configuration
 - [x] Tailwind CSS integration with PostCSS
-- [x] Firebase services structure
-- [x] Splash screen with modern design
-- [x] Home page with category grid
-- [x] Food item display with images
+- [x] Backend server with Express and MongoDB
+- [x] Socket.IO real-time communication system
+- [x] Staff Dashboard with order management
+- [x] Customer Order Tracking with live updates
+- [x] Professional UI design without emoji distractions
+- [x] Order status flow with real-time updates
 - [x] Responsive mobile-first layout
-- [x] Image asset management
-- [x] Category selection functionality
+- [x] Connection status monitoring
+- [x] Error handling and loading states
 
 ### In Progress
-- [ ] Firebase initialization and connection
-- [ ] User authentication system
-- [ ] Cart functionality
-- [ ] Order placement flow
+- [ ] Firebase authentication integration
+- [ ] Menu management system
+- [ ] Customer cart functionality
+- [ ] Payment integration setup
 
 ### Planned Features
-- [ ] Staff dashboard for order management
 - [ ] Push notifications for order updates
-- [ ] Payment integration
-- [ ] Order history
-- [ ] User profile management
-- [ ] Menu management system
+- [ ] Advanced order filtering and search
+- [ ] Order history and analytics
+- [ ] Staff role management
+- [ ] Customer feedback system
+- [ ] Inventory management
+- [ ] Reporting and analytics dashboard
 
 ## Technical Details
 
@@ -249,7 +316,15 @@ For support and questions:
 
 ## Version History
 
-### v1.0.0 (Current)
+### v2.0.0 (Current)
+- Professional UI redesign with emoji removal
+- Real-time Socket.IO integration
+- Staff Dashboard implementation
+- Customer Order Tracking system
+- Backend server with Express and MongoDB
+- Live status updates and connection monitoring
+
+### v1.0.0
 - Initial project setup
 - Home page with category selection
 - Image integration and display
