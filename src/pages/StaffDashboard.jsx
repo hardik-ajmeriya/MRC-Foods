@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { authService } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
 
@@ -7,155 +8,98 @@ const StaffDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
-  const [connectionStatus, setConnectionStatus] = useState('connecting'); // connecting, connected, disconnected
-  const [updatingOrders, setUpdatingOrders] = useState(new Set()); // Track which orders are being updated
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [updatingOrders, setUpdatingOrders] = useState(new Set());
+  
+  // Manager login state
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [error, setError] = useState('');
 
   // Initialize socket connection
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
-
-    // Join staff room for real-time updates
-    newSocket.emit('join-room', 'staff');
-    console.log('Connected to socket and joined staff room');
-
-    // Handle successful connection
-    newSocket.on('connect', () => {
-      console.log('Socket connected successfully');
-      setConnectionStatus('connected');
-    });
-
-    // Listen for new orders
-    newSocket.on('new-order', (orderData) => {
-      console.log('New order received:', orderData);
-      setOrders(prev => [orderData, ...prev]);
-    });
-
-    // Listen for order status updates
-    newSocket.on('order-status-updated', (updatedOrder) => {
-      console.log('Order status updated via socket:', updatedOrder);
-      setOrders(prev => 
-        prev.map(order => 
-          order._id === updatedOrder._id ? {
-            ...order,
-            ...updatedOrder,
-            status: updatedOrder.status,
-            updatedAt: updatedOrder.updatedAt
-          } : order
-        )
-      );
-    });
-
-    // Handle connection errors
-    newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      setConnectionStatus('disconnected');
-    });
-
-    newSocket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-      setConnectionStatus('disconnected');
-    });
-
-    return () => {
-      console.log('Cleaning up socket connection');
-      newSocket.close();
-    };
+    const socket = io('http://localhost:5000');
+    socket.emit('join-room', 'staff');
+    socket.on('connect', () => setConnectionStatus('connected'));
+    socket.on('new-order', data => setOrders(prev => [data, ...prev]));
+    socket.on('order-status-updated', data =>
+      setOrders(prev => prev.map(o => o._id === data._id ? { ...o, ...data } : o))
+    );
+    socket.on('connect_error', () => setConnectionStatus('disconnected'));
+    socket.on('disconnect', () => setConnectionStatus('disconnected'));
+    return () => socket.close();
   }, []);
 
-  // Fetch orders from API
+  // Fetch orders
   useEffect(() => {
     fetchOrders();
   }, []);
 
   const fetchOrders = async () => {
     try {
-      console.log('Fetching orders from API...');
-      const response = await fetch('http://localhost:5000/api/orders', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+      const response = await fetch('http://localhost:5000/api/orders');
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      console.log('Orders data received:', data);
-      
-      if (data.success) {
-        setOrders(data.orders);
-        console.log('Orders set to state:', data.orders.length, 'orders');
-      } else {
-        console.error('API returned error:', data.message);
-        setOrders([]);
-      }
+      if (data.success) setOrders(data.orders);
+      else setOrders([]);
     } catch (error) {
       console.error('Error fetching orders:', error);
-      console.error('Error details:', error.message);
       setOrders([]);
     } finally {
       setLoading(false);
-      console.log('Fetch orders completed, loading set to false');
+    }
+  };
+
+  const handleLogin = async () => {
+    setError('');
+    try {
+      const resp = await authService.login({ email, password });
+      if (resp.success && resp.user.role === 'admin') {
+        setIsLoggedIn(true);
+        setShowLoginModal(false);
+        setEmail('');
+        setPassword('');
+      } else {
+        setError('Invalid manager credentials');
+      }
+    } catch {
+      setError('Login failed');
     }
   };
 
   const testBackendConnection = async () => {
     try {
-      console.log('Testing backend connection...');
       const response = await fetch('http://localhost:5000/api/orders/test');
       const data = await response.json();
-      console.log('Test response:', data);
       alert(`Backend test: ${data.success ? 'SUCCESS' : 'FAILED'}\n${data.message}`);
     } catch (error) {
-      console.error('Test failed:', error);
       alert(`Backend test FAILED: ${error.message}`);
     }
   };
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      console.log('Updating order status:', { orderId, newStatus });
-      
-      // Add to updating set
       setUpdatingOrders(prev => new Set([...prev, orderId]));
-      
       const response = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-
       const data = await response.json();
-      console.log('Status update response:', data);
-      
       if (data.success) {
-        console.log('Order status updated successfully');
-        
-        // Update local state immediately for responsive UI
         setOrders(prev => 
           prev.map(order => 
             order._id === orderId ? { ...order, status: newStatus, updatedAt: new Date().toISOString() } : order
           )
         );
-        
-        // Note: Socket.IO broadcasting is handled by the backend automatically
-        // when the status update API is called. No need to emit from frontend.
-        
       } else {
-        console.error('Failed to update order status:', data.message);
         alert('Failed to update order status: ' + data.message);
       }
-    } catch (error) {
-      console.error('Error updating order status:', error);
+    } catch {
       alert('Error updating order status. Please try again.');
     } finally {
-      // Remove from updating set
       setUpdatingOrders(prev => {
         const newSet = new Set(prev);
         newSet.delete(orderId);
@@ -166,11 +110,11 @@ const StaffDashboard = () => {
 
   const getStatusColor = (status) => {
     const colors = {
-      'pending': 'bg-gray-100 text-gray-800 border-gray-200',        // Order Placed
-      'accepted': 'bg-blue-100 text-blue-800 border-blue-200',      // Order Accepted  
-      'preparing': 'bg-orange-100 text-orange-800 border-orange-200', // Preparing
-      'ready': 'bg-green-100 text-green-800 border-green-200',      // Ready for Pickup
-      'completed': 'bg-purple-100 text-purple-800 border-purple-200', // Completed
+      'pending': 'bg-gray-100 text-gray-800 border-gray-200',
+      'accepted': 'bg-blue-100 text-blue-800 border-blue-200',
+      'preparing': 'bg-orange-100 text-orange-800 border-orange-200',
+      'ready': 'bg-green-100 text-green-800 border-green-200',
+      'completed': 'bg-purple-100 text-purple-800 border-purple-200',
       'cancelled': 'bg-red-100 text-red-800 border-red-200'
     };
     return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
@@ -178,39 +122,28 @@ const StaffDashboard = () => {
 
   const getStatusIcon = (status) => {
     const icons = {
-      'pending': 'P',      // Order Placed
-      'accepted': 'A',     // Order Accepted
-      'preparing': 'R',    // Preparing
-      'ready': 'RDY',      // Ready for Pickup
-      'completed': 'C',    // Completed
-      'cancelled': 'X'     // Cancelled
+      'pending': 'P', 'accepted': 'A', 'preparing': 'R',
+      'ready': 'RDY', 'completed': 'C', 'cancelled': 'X'
     };
     return icons[status] || 'O';
   };
 
   const getStatusLabel = (status) => {
     const labels = {
-      'pending': 'Order Placed',
-      'accepted': 'Order Accepted', 
-      'preparing': 'Preparing',
-      'ready': 'Ready for Pickup',
-      'completed': 'Completed',
-      'cancelled': 'Cancelled'
+      'pending': 'Order Placed', 'accepted': 'Order Accepted', 
+      'preparing': 'Preparing', 'ready': 'Ready for Pickup',
+      'completed': 'Completed', 'cancelled': 'Cancelled'
     };
     return labels[status] || status;
   };
 
   const getNextStatus = (currentStatus) => {
     const statusFlow = {
-      'pending': 'accepted',    // Order Placed → Order Accepted
-      'accepted': 'preparing',  // Order Accepted → Preparing
-      'preparing': 'ready',     // Preparing → Ready for Pickup
-      'ready': 'completed'      // Ready for Pickup → Completed
+      'pending': 'accepted', 'accepted': 'preparing',
+      'preparing': 'ready', 'ready': 'completed'
     };
     return statusFlow[currentStatus];
   };
-
-
 
   const filterOrders = (orders) => {
     if (activeFilter === 'all') return orders;
@@ -222,8 +155,7 @@ const StaffDashboard = () => {
 
   const formatTime = (dateString) => {
     return new Date(dateString).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit'
+      hour: '2-digit', minute: '2-digit'
     });
   };
 
@@ -241,11 +173,12 @@ const StaffDashboard = () => {
   return (
     <div className="min-h-screen w-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-6 text-white">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-gradient-to-r from-green-500 to-green-600 px-4 py-4 sm:px-6 sm:py-6 text-white">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
           <div>
             <h1 className="text-2xl font-bold">Staff Dashboard</h1>
             <p className="text-green-100">Manage orders and updates</p>
+            {isLoggedIn && <p className="text-green-200 text-sm">✓ Manager Access</p>}
           </div>
           <div className="flex items-center gap-3">
             {/* Connection Status */}
@@ -269,6 +202,16 @@ const StaffDashboard = () => {
               </span>
             </div>
             
+            {/* Manager Login Button */}
+            {!isLoggedIn && (
+              <button 
+                onClick={() => setShowLoginModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-500/80 rounded-lg hover:bg-orange-500 transition-colors duration-200"
+              >
+                👤 Manager Login
+              </button>
+            )}
+            
             <button 
               onClick={testBackendConnection}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500/80 rounded-lg hover:bg-blue-500 transition-colors duration-200"
@@ -279,16 +222,13 @@ const StaffDashboard = () => {
               onClick={() => navigate('/')} 
               className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              Home
+              🏠 Home
             </button>
           </div>
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex gap-2 overflow-x-auto">
+        <div className="flex gap-2 overflow-x-auto mt-4 sm:mt-0">
           {['all', 'active', 'pending', 'accepted', 'preparing', 'ready', 'completed'].map(filter => (
             <button
               key={filter}
@@ -313,18 +253,18 @@ const StaffDashboard = () => {
       </div>
 
       {/* Orders List */}
-      <div className="px-6 py-6 space-y-4">
+      <div className="px-2 py-4 sm:px-6 sm:py-6 space-y-4">
         {filterOrders(orders).length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">No Orders</div>
+            <div className="text-gray-400 text-6xl mb-4">📋</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
             <p className="text-gray-500">Orders will appear here when customers place them.</p>
           </div>
         ) : (
           filterOrders(orders).map((order) => (
-            <div key={order._id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div key={order._id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
               {/* Order Header */}
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-2">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">
                     {order.orderNumber}
@@ -333,7 +273,7 @@ const StaffDashboard = () => {
                     {order.customerName} • {formatTime(order.createdAt)}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right mt-2 sm:mt-0">
                   <div className={`inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border-2 ${getStatusColor(order.status)}`}>
                     <span className="mr-2 text-lg">{getStatusIcon(order.status)}</span>
                     {getStatusLabel(order.status)}
@@ -345,7 +285,7 @@ const StaffDashboard = () => {
               {/* Order Items */}
               <div className="border-t border-gray-100 pt-4 mb-4">
                 <h4 className="font-medium text-gray-900 mb-2">Items:</h4>
-                <div className="space-y-2">
+                <div className="space-y-1 sm:space-y-2">
                   {order.items?.map((item, index) => (
                     <div key={index} className="flex justify-between items-center text-sm">
                       <span className="text-gray-700">
@@ -359,7 +299,7 @@ const StaffDashboard = () => {
 
               {/* Special Instructions */}
               {order.specialInstructions && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 sm:p-3 mb-4">
                   <p className="text-sm text-yellow-800">
                     <span className="font-medium">Special Instructions:</span> {order.specialInstructions}
                   </p>
@@ -368,49 +308,7 @@ const StaffDashboard = () => {
 
               {/* Action Buttons */}
               <div className="pt-4 border-t border-gray-100">
-                {/* Status Progress Timeline */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                    <span>Order Timeline</span>
-                    <span>{getStatusLabel(order.status)}</span>
-                  </div>
-                  <div className="flex items-center">
-                    {['pending', 'accepted', 'preparing', 'ready', 'completed'].map((status, index) => {
-                      const isActive = order.status === status;
-                      const isCompleted = ['pending', 'accepted', 'preparing', 'ready', 'completed'].indexOf(order.status) >= index;
-                      const isLast = index === 4;
-                      
-                      return (
-                        <div key={status} className="flex items-center flex-1">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-colors duration-200 ${
-                            isActive 
-                              ? 'bg-green-500 text-white border-green-500' 
-                              : isCompleted 
-                                ? 'bg-green-100 text-green-600 border-green-200'
-                                : 'bg-gray-100 text-gray-400 border-gray-200'
-                          }`}>
-                            {getStatusIcon(status)}
-                          </div>
-                          {!isLast && (
-                            <div className={`flex-1 h-1 mx-2 rounded transition-colors duration-200 ${
-                              isCompleted && !isActive ? 'bg-green-200' : 'bg-gray-200'
-                            }`} />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1">
-                    <span>Placed</span>
-                    <span>Accepted</span>
-                    <span>Preparing</span>
-                    <span>Ready</span>
-                    <span>Done</span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   {getNextStatus(order.status) && (
                     <button
                       onClick={() => updateOrderStatus(order._id, getNextStatus(order.status))}
@@ -449,7 +347,7 @@ const StaffDashboard = () => {
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
                       ) : (
                         <>
-                          <span>X</span>
+                          <span>❌</span>
                           Cancel
                         </>
                       )}
@@ -467,6 +365,53 @@ const StaffDashboard = () => {
           ))
         )}
       </div>
+
+      {/* Manager Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-sm">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Manager Login</h2>
+              <button 
+                onClick={() => setShowLoginModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <img src="/canteen.png" alt="Canteen" className="w-16 h-16 mx-auto mb-4" />
+            
+            {error && <p className="text-red-500 text-sm mb-2">{error}</p>}
+            
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full mb-3 px-3 py-2 border rounded focus:outline-none focus:border-green-500"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full mb-4 px-3 py-2 border rounded focus:outline-none focus:border-green-500"
+              onKeyPress={e => e.key === 'Enter' && handleLogin()}
+            />
+            <button
+              onClick={handleLogin}
+              className="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600 transition-colors"
+            >
+              Login
+            </button>
+            
+            <p className="text-xs text-gray-500 mt-4 text-center">
+              Test: admin@mrcfoods.com / password123
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
