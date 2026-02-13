@@ -1,0 +1,41 @@
+# Ignore node dependency folders
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Build outputs
+frontend/dist/
+dist/
+build/
+coverage/
+
+# Env and secrets
+.env
+.env.*
+
+# VCS and CI
+.git/
+.gitignore
+.github/
+
+# Logs and editor junk
+*.log
+npm-debug.log*
+.yarn*
+.pnpm-store
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+.tmp/
+
+# Tests
+reports/
+
+# OS/IDE files
+.idea/
+
+# Keep Dockerfile and Jenkinsfile in build context
+# Ensure app sources are included for both frontend and backend

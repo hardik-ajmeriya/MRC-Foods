@@ -220,7 +220,7 @@ const StaffDashboard = () => {
             </button>
             <button 
               onClick={() => navigate('/')} 
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg hover:bg:white/30 transition-colors duration-200"
             >
               🏠 Home
             </button>

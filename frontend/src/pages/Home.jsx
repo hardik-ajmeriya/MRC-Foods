@@ -273,7 +273,7 @@ const Home = () => {
                 <div className="flex items-center gap-1 bg-gradient-to-r from-green-500 to-green-600 rounded-lg px-2 py-2 shadow-md">
                   <button 
                     onClick={() => removeFromCart(item._id)}
-                    className={`text-white text-lg font-bold hover:bg-white hover:bg-opacity-20 rounded px-2 py-0.5 
+                    className={`text-white text-lg font-bold hover:bg:white hover:bg-opacity-20 rounded px-2 py-0.5 
                              transition-all duration-200 transform hover:scale-110 active:scale-95
                              ${clickedButton === `remove-${item._id}` ? 'scale-125 bg-white bg-opacity-30' : ''}`}
                   >
@@ -284,7 +284,7 @@ const Home = () => {
                   </span>
                   <button 
                     onClick={() => addToCart(item._id)}
-                    className={`text-white text-lg font-bold hover:bg-white hover:bg-opacity-20 rounded px-2 py-0.5 
+                    className={`text:white text-lg font-bold hover:bg-white hover:bg-opacity-20 rounded px-2 py-0.5 
                              transition-all duration-200 transform hover:scale-110 active:scale-95
                              ${clickedButton === `add-${item._id}` ? 'scale-125 bg-white bg-opacity-30' : ''}`}
                   >
@@ -299,7 +299,7 @@ const Home = () => {
       </div>
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
+      <div className="fixed bottom-0 left-0 right-0 bg:white border-t border-gray-200">
         <div className="flex items-center justify-around py-2">
           <div className="flex flex-col items-center py-2">
             <span className="text-orange-500 text-xl">🏠</span>

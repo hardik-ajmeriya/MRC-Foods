@@ -41,7 +41,7 @@ const Splash = () => {
             
             {/* Modern CTA button - Swiggy style */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <button className="group relative bg-white text-orange-600 font-bold py-4 px-10 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 text-lg overflow-hidden border-2 border-orange-200">
+              <button className="group relative bg:white text-orange-600 font-bold py-4 px-10 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 text-lg overflow-hidden border-2 border-orange-200">
                 <span className="relative z-10">Get Started</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-orange-50 to-red-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </button>

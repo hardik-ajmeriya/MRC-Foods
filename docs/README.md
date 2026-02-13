@@ -79,11 +79,11 @@ MRC_Foods/
 │   │   ├── StaffDashboard.jsx # Staff order management dashboard
 │   │   └── OrderStatus.jsx    # Customer order tracking page
 │   ├── services/
-│   │   └── orders.js          # Firebase order management
+│   │   
 │   ├── styles/
 │   │   └── index.css          # Global styles with Tailwind
 │   ├── utils/
-│   │   └── orderStatus.js     # Order status enums and flow
+│   │   
 │   ├── App.jsx                # Main app component with routing
 │   └── main.jsx               # App entry point
 ├── backend/                   # Node.js backend server

@@ -59,11 +59,11 @@ MRC_Foods/
 │   │   ├── Splash.jsx         # App splash screen
 │   │   └── Home.jsx           # Main home page
 │   ├── services/
-│   │   └── orders.js          # Firebase order management
+│   │   
 │   ├── styles/
 │   │   └── index.css          # Global styles with Tailwind
 │   ├── utils/
-│   │   └── orderStatus.js     # Order status enums and flow
+│   │   
 │   ├── App.jsx                # Main app component
 │   └── main.jsx               # App entry point
 ├── .env.example               # Environment variables template
