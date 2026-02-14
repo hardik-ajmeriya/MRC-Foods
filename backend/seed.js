@@ -5,6 +5,8 @@ const MenuItem = require('./models/MenuItem');
 const User = require('./models/User');
 require('dotenv').config();
 
+
+//test comment
 const seedData = async () => {
   try {
     // Connect to MongoDB
