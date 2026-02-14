@@ -25,7 +25,7 @@ pipeline {
     stage('Prepare Env File') {
       steps {
         sh '''
-          echo "MONGODB_URI=YOUR_ATLAS_URI" > backend/.env
+          echo "MONGODB_URI=mongodb+srv://admin:rtx3050ti@cluster0.h8awzil.mongodb.net/mrcfoods" > backend/.env
           echo "PORT=5000" >> backend/.env
         '''
       }
