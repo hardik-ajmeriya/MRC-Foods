@@ -7,6 +7,7 @@ require('dotenv').config();
 
 
 //test comment
+//2nd test comment
 const seedData = async () => {
   try {
     // Connect to MongoDB
