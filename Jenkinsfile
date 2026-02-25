@@ -3,7 +3,6 @@ pipeline {
 
   environment {
     APP_NAME = 'mrc-foods'
-    IMAGE_TAG = 'latest'
   }
 
   stages {
@@ -16,33 +15,27 @@ pipeline {
 
     stage('Build Docker Image') {
       steps {
-        sh '''
-          docker build -t mrc-foods .
-        '''
+        sh 'docker build -t mrc-foods .'
       }
     }
 
-    stage('Prepare Env File') {
+    stage('Create .env from Secret') {
       steps {
-        sh '''
-          echo "MONGODB_URI=mongodb+srv://admin:rtx3050ti@cluster0.h8awzil.mongodb.net/mrcfoods" > backend/.env
-          echo "PORT=5000" >> backend/.env
-        '''
+        withCredentials([string(credentialsId: 'MONGO_URI', variable: 'MONGO_URI')]) {
+          sh '''
+            echo "MONGODB_URI=$MONGO_URI" > backend/.env
+            echo "PORT=5000" >> backend/.env
+          '''
+        }
       }
     }
 
-    stage('Stop Old Container') {
+    stage('Deploy') {
       steps {
         sh '''
           docker stop mrc-foods || true
           docker rm mrc-foods || true
-        '''
-      }
-    }
 
-    stage('Run Container') {
-      steps {
-        sh '''
           docker run -d \
             --name mrc-foods \
             -p 5000:5000 \
@@ -51,12 +44,11 @@ pipeline {
         '''
       }
     }
-
   }
 
   post {
     success {
-      echo 'Build + Deploy successful'
+      echo 'Secure Deployment Successful'
       sh 'docker ps'
     }
     failure {
