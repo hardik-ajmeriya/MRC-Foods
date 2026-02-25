@@ -1,59 +1,76 @@
 pipeline {
-  agent any
+    agent any
 
-  environment {
-    APP_NAME = 'mrc-foods'
-  }
-
-  stages {
-
-    stage('Checkout') {
-      steps {
-        checkout scm
-      }
+    environment {
+        IMAGE_NAME = "mrc-foods"
     }
 
-    stage('Build Docker Image') {
-      steps {
-        sh 'docker build -t mrc-foods .'
-      }
-    }
+    stages {
 
-    stage('Create .env from Secret') {
-      steps {
-        withCredentials([string(credentialsId: 'MONGO_URI', variable: 'MONGO_URI')]) {
-          sh '''
-            echo "MONGODB_URI=$MONGO_URI" > backend/.env
-            echo "PORT=5000" >> backend/.env
-          '''
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
         }
-      }
-    }
 
-    stage('Deploy') {
-      steps {
-        sh '''
-          docker stop mrc-foods || true
-          docker rm mrc-foods || true
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+                }
+                sh """
+                docker build -t $IMAGE_NAME:$GIT_COMMIT_SHORT .
+                """
+            }
+        }
 
-          docker run -d \
-            --name mrc-foods \
-            -p 5000:5000 \
-            --env-file backend/.env \
-            mrc-foods
-        '''
-      }
-    }
-  }
+        stage('Deploy Staging') {
+            when {
+                branch 'dev'
+            }
+            steps {
+                withCredentials([file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')]) {
+                    sh """
+                    cp \$ENV_FILE .env
 
-  post {
-    success {
-      echo 'Secure Deployment Successful'
-      sh 'docker ps'
+                    docker stop mrc-staging || true
+                    docker rm mrc-staging || true
+
+                    docker run -d \
+                      --name mrc-staging \
+                      -p 5001:5000 \
+                      --env-file .env \
+                      $IMAGE_NAME:$GIT_COMMIT_SHORT
+                    """
+                }
+            }
+        }
+
+        stage('Deploy Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                input message: "Deploy to Production?"
+
+                withCredentials([file(credentialsId: 'mrc-production-env', variable: 'ENV_FILE')]) {
+                    sh """
+                    cp \$ENV_FILE .env
+
+                    docker stop mrc-prod || true
+                    docker rm mrc-prod || true
+
+                    docker run -d \
+                      --name mrc-prod \
+                      -p 5000:5000 \
+                      --env-file .env \
+                      $IMAGE_NAME:$GIT_COMMIT_SHORT
+                    """
+                }
+            }
+        }
     }
-    failure {
-      echo 'Build failed'
-      sh 'docker logs mrc-foods || true'
-    }
-  }
 }
