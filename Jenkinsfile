@@ -29,7 +29,7 @@ pipeline {
 
         stage('Deploy Staging') {
             when {
-                branch 'dev'
+                expression { env.GIT_BRANCH?.contains('dev') || env.BRANCH_NAME == 'dev' }
             }
             steps {
                 withCredentials([file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')]) {
@@ -51,7 +51,7 @@ pipeline {
 
         stage('Deploy Production') {
             when {
-                branch 'main'
+                expression { env.GIT_BRANCH?.contains('main') || env.BRANCH_NAME == 'main' }
             }
             steps {
                 input message: "Deploy to Production?"
