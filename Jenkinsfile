@@ -21,6 +21,7 @@ pipeline {
                         returnStdout: true
                     ).trim()
                 }
+
                 sh """
                 docker build -t $IMAGE_NAME:$GIT_COMMIT_SHORT .
                 """
@@ -31,18 +32,18 @@ pipeline {
             when {
                 expression { env.GIT_BRANCH?.contains('dev') || env.BRANCH_NAME == 'dev' }
             }
+
             steps {
                 withCredentials([file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')]) {
-                    sh """
-                    cp \$ENV_FILE .env
 
+                    sh """
                     docker stop mrc-staging || true
                     docker rm mrc-staging || true
 
                     docker run -d \
                       --name mrc-staging \
                       -p 5001:5000 \
-                      --env-file .env \
+                      --env-file \$ENV_FILE \
                       $IMAGE_NAME:$GIT_COMMIT_SHORT
                     """
                 }
@@ -53,20 +54,20 @@ pipeline {
             when {
                 expression { env.GIT_BRANCH?.contains('main') || env.BRANCH_NAME == 'main' }
             }
+
             steps {
                 input message: "Deploy to Production?"
 
                 withCredentials([file(credentialsId: 'mrc-production-env', variable: 'ENV_FILE')]) {
-                    sh """
-                    cp \$ENV_FILE .env
 
+                    sh """
                     docker stop mrc-prod || true
                     docker rm mrc-prod || true
 
                     docker run -d \
                       --name mrc-prod \
                       -p 5000:5000 \
-                      --env-file .env \
+                      --env-file \$ENV_FILE \
                       $IMAGE_NAME:$GIT_COMMIT_SHORT
                     """
                 }
