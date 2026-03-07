@@ -9,72 +9,96 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+const PORT = process.env.PORT || 5000;
+
+/*
+---------------------------------------
+Socket.IO Setup
+---------------------------------------
+*/
 const io = socketIo(server, {
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    methods: ["GET", "POST"]
+    methods: ['GET', 'POST']
   }
 });
-const PORT = process.env.PORT || 5000;
 
-// Security middleware
+/*
+---------------------------------------
+Security Middleware
+---------------------------------------
+*/
 app.use(helmet());
 
-// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100
 });
+
 app.use(limiter);
 
-// CORS configuration
+/*
+---------------------------------------
+CORS
+---------------------------------------
+*/
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
 
-// Body parsing middleware
+/*
+---------------------------------------
+Body Parsers
+---------------------------------------
+*/
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files for uploaded images
+/*
+---------------------------------------
+Static Files
+---------------------------------------
+*/
 app.use('/uploads', express.static('uploads'));
 
-// MongoDB connection
+/*
+---------------------------------------
+MongoDB Connection
+---------------------------------------
+*/
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mrc_foods');
-    console.log(`📊 Connected to MongoDB: ${conn.connection.host}`);
-    return true;
+    const conn = await mongoose.connect(
+      process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mrc_foods'
+    );
+
+    console.log(`📊 MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
-    console.log('\n🔧 Troubleshooting steps:');
-    console.log('1. Start MongoDB service as Administrator: net start MongoDB');
-    console.log('2. Or start manually: mongod --dbpath "C:\\data\\db"');
-    console.log('3. Or use MongoDB Atlas and update MONGODB_URI in .env');
-    console.log('4. Server will continue running on port', PORT);
-    console.log('   But database operations will fail until MongoDB is connected.');
-    return false;
+    console.log('Server will continue running without DB.');
   }
 };
 
-// Try to connect to MongoDB (non-blocking)
 connectDB();
 
-// Socket.IO connection handling
+/*
+---------------------------------------
+Socket.IO Events
+---------------------------------------
+*/
 io.on('connection', (socket) => {
   console.log('👤 User connected:', socket.id);
 
-  // Join room based on user type
   socket.on('join-room', (room) => {
     socket.join(room);
     console.log(`👤 User ${socket.id} joined room: ${room}`);
   });
 
-  // Handle order status updates from staff
   socket.on('update-order-status', (data) => {
     console.log('📦 Order status update:', data);
-    // Broadcast to all users (customers and staff)
+
     io.emit('order-status-updated', data);
   });
 
@@ -83,37 +107,82 @@ io.on('connection', (socket) => {
   });
 });
 
-// Make io accessible to routes
+//Temp Comment
 app.set('socketio', io);
 
-// Routes
+/*
+---------------------------------------
+API Routes
+---------------------------------------
+*/
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/menu', require('./routes/menu'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/users', require('./routes/users'));
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'MRC Foods API is running',
-    timestamp: new Date().toISOString()
+/*
+---------------------------------------
+Root Route (API Info)
+---------------------------------------
+*/
+app.get('/', (req, res) => {
+  res.status(200).json({
+    service: 'MRC Foods API',
+    status: 'running',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      menu: '/api/menu',
+      orders: '/api/orders'
+    }
   });
 });
 
-// Global error handler
-// eslint-disable-next-line no-unused-vars
+/*
+---------------------------------------
+Health Check
+---------------------------------------
+*/
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    service: 'MRC Foods API',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    database:
+      mongoose.connection.readyState === 1
+        ? 'connected'
+        : 'disconnected'
+  });
+});
+
+/*
+---------------------------------------
+Global Error Handler
+---------------------------------------
+*/
 app.use((err, req, res, next) => {
   console.error('🚨 Error:', err.stack);
+
   res.status(500).json({
     success: false,
     message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    error:
+      process.env.NODE_ENV === 'development'
+        ? err.message
+        : 'Internal server error'
   });
 });
 
-// 404 handler
+/*
+---------------------------------------
+404 Handler
+---------------------------------------
+*/
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
@@ -121,8 +190,13 @@ app.use('*', (req, res) => {
   });
 });
 
+/*
+---------------------------------------
+Server Start
+---------------------------------------
+*/
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-  console.log(`📡 Socket.IO server running for real-time updates`);
+  console.log(`📡 Socket.IO server running`);
 });
