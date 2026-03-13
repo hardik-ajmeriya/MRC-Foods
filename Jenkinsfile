@@ -22,7 +22,7 @@ pipeline {
                     ).trim()
                 }
 
-                sh """
+                bat """
                 docker build -t $IMAGE_NAME:$GIT_COMMIT_SHORT .
                 """
             }
