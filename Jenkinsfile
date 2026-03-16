@@ -16,7 +16,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    env.GIT_COMMIT_SHORT = sh(
+                    env.GIT_COMMIT_SHORT = bat(
                         script: "git rev-parse --short HEAD",
                         returnStdout: true
                     ).trim()
@@ -50,7 +50,7 @@ pipeline {
             }
         }
 
-        stage('Deploy Production') 
+        stage('Deploy Production') {
             when {
                 expression { env.GIT_BRANCH?.contains('main') || env.BRANCH_NAME == 'main' }
             }
