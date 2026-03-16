@@ -36,7 +36,7 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')]) {
 
-                    sh """
+                    shh """
                     docker stop mrc-staging || true
                     docker rm mrc-staging || true
 
