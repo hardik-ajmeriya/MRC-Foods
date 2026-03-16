@@ -60,7 +60,7 @@ pipeline {
 
                 withCredentials([file(credentialsId: 'mrc-production-env', variable: 'ENV_FILE')]) {
 
-                    sh """
+                    shh """
                     docker stop mrc-prod || true
                     docker rm mrc-prod || true
 
