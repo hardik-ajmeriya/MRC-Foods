@@ -36,7 +36,7 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')]) {
 
-                    shh """
+                    sh """
                     docker stop mrc-staging || true
                     docker rm mrc-staging || true
 
@@ -50,7 +50,7 @@ pipeline {
             }
         }
 
-        stage('Deploy Production') {
+        stage('Deploy Production') 
             when {
                 expression { env.GIT_BRANCH?.contains('main') || env.BRANCH_NAME == 'main' }
             }
