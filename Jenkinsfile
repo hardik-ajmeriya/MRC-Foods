@@ -9,7 +9,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm
+                checkout scmmm
             }
         }
 
@@ -60,7 +60,7 @@ pipeline {
 
                 withCredentials([file(credentialsId: 'mrc-production-env', variable: 'ENV_FILE')]) {
 
-                    bat """
+                    sh """
                     docker stop mrc-prod || true
                     docker rm mrc-prod || true
 
