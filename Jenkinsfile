@@ -22,7 +22,7 @@ pipeline {
                     ).trim()
                 }
 
-                bat """
+                sh """
                 docker build -t $IMAGE_NAME:$GIT_COMMIT_SHORT .
                 """
             }
@@ -60,7 +60,7 @@ pipeline {
 
                 withCredentials([file(credentialsId: 'mrc-production-env', variable: 'ENV_FILE')]) {
 
-                    bat """
+                    sh """
                     docker stop mrc-prod || true
                     docker rm mrc-prod || true
 
