@@ -5,6 +5,7 @@ pipeline {
         IMAGE_NAME = "mrc-foods"
     }
 
+//checkout stage, build docker image stage, deploy staging stage, deploy production stage
     stages {
 
         stage('Checkout') {
@@ -12,7 +13,7 @@ pipeline {
                 checkout scm
             }
         }
-
+//Docker build command to build the image with the tag as the short git commit hash
         stage('Build Docker Image') {
             steps {
                 script {
@@ -28,6 +29,7 @@ pipeline {
             }
         }
 
+//Deploy to staging if the branch is dev, deploy to production if the branch is main. Use the respective env files for each environment
         stage('Deploy Staging') {
             when {
                 expression { env.GIT_BRANCH?.contains('dev') || env.BRANCH_NAME == 'dev' }
@@ -50,6 +52,7 @@ pipeline {
             }
         }
 
+//Deploy to production with a manual approval step before deployment
         stage('Deploy Production') {
             when {
                 expression { env.GIT_BRANCH?.contains('main') || env.BRANCH_NAME == 'main' }
