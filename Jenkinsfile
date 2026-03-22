@@ -23,7 +23,7 @@ pipeline {
                 }
 
                 sh """
-                dockerrr build -t $IMAGE_NAME:$GIT_COMMIT_SHORT .
+                docker build -t $IMAGE_NAME:$GIT_COMMIT_SHORT .
                 """
             }
         }
