@@ -17,7 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    env.GIT_COMMIT_SHORT = ssh(
+                    env.GIT_COMMIT_SHORT = bat(
                         script: "git rev-parse --short HEAD",
                         returnStdout: true
                     ).trim()
