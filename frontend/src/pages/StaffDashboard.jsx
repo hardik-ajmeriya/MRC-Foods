@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { authService } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import api from '../services/api';
 
 const StaffDashboard = () => {
   const navigate = useNavigate();
@@ -39,9 +40,7 @@ const StaffDashboard = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/orders');
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
+      const data = await api.get('/orders');
       if (data.success) setOrders(data.orders);
       else setOrders([]);
     } catch (error) {
@@ -82,12 +81,9 @@ const StaffDashboard = () => {
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       setUpdatingOrders(prev => new Set([...prev, orderId]));
-      const response = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+      const data = await api.put(`/orders/${orderId}/status`, {
+        status: newStatus
       });
-      const data = await response.json();
       if (data.success) {
         setOrders(prev => 
           prev.map(order => 

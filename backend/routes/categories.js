@@ -1,6 +1,6 @@
 const express = require('express');
 const Category = require('../models/Category');
-const auth = require('../middleware/auth');
+const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 // Get all categories
@@ -58,16 +58,8 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create category (Admin/Staff only)
-router.post('/', auth, async (req, res) => {
+router.post('/', protect, authorizeRoles('admin', 'staff'), async (req, res) => {
   try {
-    // Check if user is admin or staff
-    if (req.user.role !== 'admin' && req.user.role !== 'staff') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin or Staff role required.'
-      });
-    }
-    
     const category = new Category(req.body);
     await category.save();
     
@@ -95,16 +87,8 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Update category (Admin/Staff only)
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', protect, authorizeRoles('admin', 'staff'), async (req, res) => {
   try {
-    // Check if user is admin or staff
-    if (req.user.role !== 'admin' && req.user.role !== 'staff') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin or Staff role required.'
-      });
-    }
-    
     const category = await Category.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -142,16 +126,8 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // Delete category (Admin only)
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', protect, authorizeRoles('admin'), async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin role required.'
-      });
-    }
-    
     const category = await Category.findByIdAndDelete(req.params.id);
     
     if (!category) {

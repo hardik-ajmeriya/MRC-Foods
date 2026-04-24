@@ -26,9 +26,8 @@ const userSchema = new mongoose.Schema({
   },
   studentId: {
     type: String,
-    required: function() {
-      return this.role === 'student';
-    },
+    trim: true,
+    default: null,
     sparse: true
   },
   phone: {

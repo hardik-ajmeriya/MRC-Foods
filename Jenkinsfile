@@ -1,10 +1,21 @@
 pipeline {
     agent any
 
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+    }
+
     environment {
+        REGISTRY = "your-dockerhub-username"
         IMAGE_NAME = "mrc-foods"
+        IMAGE = "${REGISTRY}/${IMAGE_NAME}"
+
         CONTAINER_STAGING = "mrc-staging"
         PORT_STAGING = "5001"
+
+        CONTAINER_PROD = "mrc-prod"
+        PORT_PROD = "5000"
     }
 
     stages {
@@ -15,63 +26,139 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Image') {
             steps {
                 script {
-                    env.GIT_COMMIT_SHORT = bat(
+                    env.TAG = sh(
                         script: "git rev-parse --short HEAD",
                         returnStdout: true
                     ).trim()
                 }
 
-                sh """
-                docker build -t $IMAGE_NAME:$GIT_COMMIT_SHORT .
-                """
+                sh '''
+                docker build -t $IMAGE:$TAG .
+                docker tag $IMAGE:$TAG $IMAGE:latest
+                '''
             }
         }
 
-        stage('Deploy to Staging') {
+        stage('Push Image') {
             steps {
-                withCredentials([file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')]) {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'docker-creds',
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh '''
+                    set +x
+                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-                    sh """
+                    docker push $IMAGE:$TAG
+                    docker push $IMAGE:latest
+
+                    docker logout
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                script {
+
+                    if (env.BRANCH_NAME == "dev") {
+
+                        withCredentials([
+                            file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
+                        ]) {
+                            sh '''
+                            docker pull $IMAGE:$TAG
+
+                            docker stop $CONTAINER_STAGING || true
+                            docker rm $CONTAINER_STAGING || true
+
+                            docker run -d \
+                              --name $CONTAINER_STAGING \
+                              -p $PORT_STAGING:5000 \
+                              --env-file $ENV_FILE \
+                              $IMAGE:$TAG
+                            '''
+                        }
+
+                    } else if (env.BRANCH_NAME == "main") {
+
+                        withCredentials([
+                            file(credentialsId: 'mrc-prod-env', variable: 'ENV_FILE')
+                        ]) {
+                            sh '''
+                            docker pull $IMAGE:$TAG
+
+                            docker stop $CONTAINER_PROD || true
+                            docker rm $CONTAINER_PROD || true
+
+                            docker run -d \
+                              --name $CONTAINER_PROD \
+                              -p $PORT_PROD:5000 \
+                              --env-file $ENV_FILE \
+                              $IMAGE:$TAG
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                script {
+                    if (env.BRANCH_NAME == "dev") {
+                        sh 'sleep 5 && curl -f http://localhost:$PORT_STAGING/health'
+                    } else {
+                        sh 'sleep 5 && curl -f http://localhost:$PORT_PROD/health'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+
+        failure {
+            echo "Deployment failed — rolling back"
+
+            script {
+                if (env.BRANCH_NAME == "dev") {
+                    sh '''
                     docker stop $CONTAINER_STAGING || true
                     docker rm $CONTAINER_STAGING || true
 
                     docker run -d \
                       --name $CONTAINER_STAGING \
                       -p $PORT_STAGING:5000 \
-                      --env-file \$ENV_FILE \
-                      $IMAGE_NAME:$GIT_COMMIT_SHORT
-                    """
+                      $IMAGE:latest
+                    '''
+                } else {
+                    sh '''
+                    docker stop $CONTAINER_PROD || true
+                    docker rm $CONTAINER_PROD || true
+
+                    docker run -d \
+                      --name $CONTAINER_PROD \
+                      -p $PORT_PROD:5000 \
+                      $IMAGE:latest
+                    '''
                 }
             }
         }
 
-        // 💣 INTENTIONAL FAILURE STAGE
-        stage('Health Check (Will Fail)') {
-            steps {
-                sh """
-                echo "Waiting for app..."
-                sleep 5
-
-                echo "Running health check..."
-
-                curl -f http://localhost:$PORT_STAGING/health || (
-                  echo "❌ HEALTH CHECK FAILED - SERVICE UNHEALTHY"
-                  exit 1
-                )
-                """
-            }
-        }
-    }
-
-    post {
         success {
-            echo "✅ Pipeline Success"
+            echo "Deployment successful"
         }
-        failure {
-            echo "🚨 Pipeline Failed - Trigger AI Analysis"
+
+        always {
+            sh 'docker system prune -f || true'
         }
     }
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -23,8 +24,7 @@ const Cart = () => {
   useEffect(() => {
     const fetchMenuItems = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/menu');
-        const data = await response.json();
+        const data = await api.get('/menu');
         if (data.success) {
           setMenuItems(data.data);
         }
@@ -86,17 +86,7 @@ const Cart = () => {
         specialInstructions: specialInstructions.trim()
       };
 
-      // Make API call to create order (with mock token for now)
-      const response = await fetch('http://localhost:5000/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-token' // You can implement proper auth later
-        },
-        body: JSON.stringify(orderData)
-      });
-
-      const result = await response.json();
+      const result = await api.post('/orders', orderData);
       
       if (result.success) {
         // Clear cart and navigate to order status with real order data

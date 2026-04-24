@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../features/auth/hooks/useAuth';
 
 // Default category images for fallback
 const defaultImages = {
@@ -15,6 +16,7 @@ const defaultImages = {
 
 const Home = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useAuth();
   const [activeCategory, setActiveCategory] = useState('Biryani');
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -127,6 +129,11 @@ const Home = () => {
     navigate('/order-status');
   };
 
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -149,19 +156,44 @@ const Home = () => {
               <span className="text-blue-600">Foods</span>
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/staff')}
               className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium hover:bg-green-200 transition-colors duration-200"
             >
               Staff
             </button>
-            <div className="relative">
-              <span className="text-gray-600">🔔</span>
-            </div>
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-medium">H</span>
-            </div>
+
+            {!isAuthenticated ? (
+              <>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="px-3 py-1 bg-slate-800 text-white rounded-full text-sm font-medium hover:bg-slate-700 transition-colors duration-200"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => navigate('/register')}
+                  className="px-3 py-1 bg-orange-500 text-white rounded-full text-sm font-medium hover:bg-orange-400 transition-colors duration-200"
+                >
+                  Register
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium hover:bg-red-200 transition-colors duration-200"
+                >
+                  Logout
+                </button>
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {(user?.name?.[0] || 'U').toUpperCase()}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
         
