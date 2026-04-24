@@ -70,6 +70,8 @@ pipeline {
 
                     if (env.BRANCH_NAME == "dev") {
 
+                        echo "🚀 Deploying to STAGING..."
+
                         withCredentials([
                             file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
                         ]) {
@@ -88,6 +90,8 @@ pipeline {
                         }
 
                     } else if (env.BRANCH_NAME == "main") {
+
+                        echo "🚀 Deploying to PRODUCTION..."
 
                         withCredentials([
                             file(credentialsId: 'mrc-prod-env', variable: 'ENV_FILE')
@@ -114,9 +118,9 @@ pipeline {
             steps {
                 script {
                     if (env.BRANCH_NAME == "dev") {
-                        sh 'sleep 5 && curl -f http://localhost:$PORT_STAGING/health'
+                        sh 'sleep 5 && curl -f http://localhost:5001/health'
                     } else {
-                        sh 'sleep 5 && curl -f http://localhost:$PORT_PROD/health'
+                        sh 'sleep 5 && curl -f http://localhost:5000/health'
                     }
                 }
             }
@@ -125,8 +129,12 @@ pipeline {
 
     post {
 
+        success {
+            echo "✅ Deployment successful 🚀"
+        }
+
         failure {
-            echo "Deployment failed — rolling back"
+            echo "❌ Deployment failed — rolling back"
 
             script {
                 if (env.BRANCH_NAME == "dev") {
@@ -151,10 +159,6 @@ pipeline {
                     '''
                 }
             }
-        }
-
-        success {
-            echo "Deployment successful"
         }
 
         always {
