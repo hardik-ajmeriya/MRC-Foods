@@ -10,12 +10,6 @@ pipeline {
         REGISTRY = "hardik558"
         IMAGE_NAME = "mrc-foods"
         IMAGE = "${REGISTRY}/${IMAGE_NAME}"
-
-        CONTAINER_STAGING = "mrc-staging"
-        PORT_STAGING = "5001"
-
-        CONTAINER_PROD = "mrc-prod"
-        PORT_PROD = "5000"
     }
 
     stages {
@@ -68,9 +62,12 @@ pipeline {
             steps {
                 script {
 
-                    if (env.BRANCH_NAME == "dev") {
+                    echo "🔥 Branch detected: ${env.BRANCH_NAME}"
 
-                        echo "🚀 Deploying to STAGING..."
+                    // ✅ DEV → STAGING
+                    if (env.BRANCH_NAME?.contains("dev")) {
+
+                        echo "🚀 Deploying to STAGING (5001)"
 
                         withCredentials([
                             file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
@@ -78,20 +75,22 @@ pipeline {
                             sh '''
                             docker pull $IMAGE:$TAG
 
-                            docker stop $CONTAINER_STAGING || true
-                            docker rm $CONTAINER_STAGING || true
+                            docker stop mrc-staging || true
+                            docker rm mrc-staging || true
 
                             docker run -d \
-                              --name $CONTAINER_STAGING \
-                              -p $PORT_STAGING:5000 \
+                              --name mrc-staging \
+                              -p 5001:5000 \
                               --env-file $ENV_FILE \
                               $IMAGE:$TAG
                             '''
                         }
 
-                    } else if (env.BRANCH_NAME == "main") {
+                    } 
+                    // ✅ MAIN → PRODUCTION
+                    else {
 
-                        echo "🚀 Deploying to PRODUCTION..."
+                        echo "🚀 Deploying to PRODUCTION (5000)"
 
                         withCredentials([
                             file(credentialsId: 'mrc-prod-env', variable: 'ENV_FILE')
@@ -99,12 +98,12 @@ pipeline {
                             sh '''
                             docker pull $IMAGE:$TAG
 
-                            docker stop $CONTAINER_PROD || true
-                            docker rm $CONTAINER_PROD || true
+                            docker stop mrc-prod || true
+                            docker rm mrc-prod || true
 
                             docker run -d \
-                              --name $CONTAINER_PROD \
-                              -p $PORT_PROD:5000 \
+                              --name mrc-prod \
+                              -p 5000:5000 \
                               --env-file $ENV_FILE \
                               $IMAGE:$TAG
                             '''
@@ -117,11 +116,15 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-                    if (env.BRANCH_NAME == "dev") {
+
+                    if (env.BRANCH_NAME?.contains("dev")) {
+                        echo "🔍 Checking STAGING health..."
                         sh 'sleep 5 && curl -f http://localhost:5001/health'
                     } else {
+                        echo "🔍 Checking PROD health..."
                         sh 'sleep 5 && curl -f http://localhost:5000/health'
                     }
+
                 }
             }
         }
@@ -137,24 +140,24 @@ pipeline {
             echo "❌ Deployment failed — rolling back"
 
             script {
-                if (env.BRANCH_NAME == "dev") {
+                if (env.BRANCH_NAME?.contains("dev")) {
                     sh '''
-                    docker stop $CONTAINER_STAGING || true
-                    docker rm $CONTAINER_STAGING || true
+                    docker stop mrc-staging || true
+                    docker rm mrc-staging || true
 
                     docker run -d \
-                      --name $CONTAINER_STAGING \
-                      -p $PORT_STAGING:5000 \
+                      --name mrc-staging \
+                      -p 5001:5000 \
                       $IMAGE:latest
                     '''
                 } else {
                     sh '''
-                    docker stop $CONTAINER_PROD || true
-                    docker rm $CONTAINER_PROD || true
+                    docker stop mrc-prod || true
+                    docker rm mrc-prod || true
 
                     docker run -d \
-                      --name $CONTAINER_PROD \
-                      -p $PORT_PROD:5000 \
+                      --name mrc-prod \
+                      -p 5000:5000 \
                       $IMAGE:latest
                     '''
                 }
