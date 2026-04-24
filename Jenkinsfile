@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        REGISTRY = "your-dockerhub-username"
+        REGISTRY = "hardik558"
         IMAGE_NAME = "mrc-foods"
         IMAGE = "${REGISTRY}/${IMAGE_NAME}"
 
