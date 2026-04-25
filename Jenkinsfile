@@ -20,6 +20,19 @@ pipeline {
             }
         }
 
+        stage('Detect Branch') {
+            steps {
+                script {
+                    env.ACTUAL_BRANCH = sh(
+                        script: "git branch --show-current || echo dev",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "🔥 Detected Branch: ${env.ACTUAL_BRANCH}"
+                }
+            }
+        }
+
         stage('Build Image') {
             steps {
                 script {
@@ -58,110 +71,59 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
-            steps {
-                script {
-
-                    echo "🔥 Branch detected: ${env.BRANCH_NAME}"
-
-                    // ✅ DEV → STAGING
-                    if (env.BRANCH_NAME?.contains("dev")) {
-
-                        echo "🚀 Deploying to STAGING (5001)"
-
-                        withCredentials([
-                            file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
-                        ]) {
-                            sh '''
-                            docker pull $IMAGE:$TAG
-
-                            docker stop mrc-staging || true
-                            docker rm mrc-staging || true
-
-                            docker run -d \
-                              --name mrc-staging \
-                              -p 5001:5000 \
-                              --env-file $ENV_FILE \
-                              $IMAGE:$TAG
-                            '''
-                        }
-
-                    } 
-                    // ✅ MAIN → PRODUCTION
-                    else {
-
-                        echo "🚀 Deploying to PRODUCTION (5000)"
-
-                        withCredentials([
-                            file(credentialsId: 'mrc-prod-env', variable: 'ENV_FILE')
-                        ]) {
-                            sh '''
-                            docker pull $IMAGE:$TAG
-
-                            docker stop mrc-prod || true
-                            docker rm mrc-prod || true
-
-                            docker run -d \
-                              --name mrc-prod \
-                              -p 5000:5000 \
-                              --env-file $ENV_FILE \
-                              $IMAGE:$TAG
-                            '''
-                        }
-                    }
-                }
+        stage('Deploy to Staging') {
+            when {
+                expression { env.ACTUAL_BRANCH == "dev" }
             }
-        }
-
-        stage('Health Check') {
             steps {
-                script {
+                echo "🚀 Deploying to STAGING (port 5001)"
 
-                    if (env.BRANCH_NAME?.contains("dev")) {
-                        echo "🔍 Checking STAGING health..."
-                        sh 'sleep 5 && curl -f http://localhost:5001/health'
-                    } else {
-                        echo "🔍 Checking PROD health..."
-                        sh 'sleep 5 && curl -f http://localhost:5000/health'
-                    }
-
-                }
-            }
-        }
-    }
-
-    post {
-
-        success {
-            echo "✅ Deployment successful 🚀"
-        }
-
-        failure {
-            echo "❌ Deployment failed — rolling back"
-
-            script {
-                if (env.BRANCH_NAME?.contains("dev")) {
+                withCredentials([
+                    file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
+                ]) {
                     sh '''
+                    docker pull $IMAGE:$TAG
+
                     docker stop mrc-staging || true
                     docker rm mrc-staging || true
 
                     docker run -d \
                       --name mrc-staging \
                       -p 5001:5000 \
-                      $IMAGE:latest
-                    '''
-                } else {
-                    sh '''
-                    docker stop mrc-prod || true
-                    docker rm mrc-prod || true
-
-                    docker run -d \
-                      --name mrc-prod \
-                      -p 5000:5000 \
-                      $IMAGE:latest
+                      --env-file $ENV_FILE \
+                      $IMAGE:$TAG
                     '''
                 }
             }
+        }
+
+        stage('Health Check (Staging)') {
+            when {
+                expression { env.ACTUAL_BRANCH == "dev" }
+            }
+            steps {
+                echo "🔍 Checking STAGING health..."
+                sh 'sleep 5 && curl -f http://localhost:5001/health'
+            }
+        }
+
+        stage('Skip Production') {
+            when {
+                expression { env.ACTUAL_BRANCH != "dev" }
+            }
+            steps {
+                echo "⚠️ Production deploy skipped (not main branch)"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Pipeline SUCCESS 🚀"
+        }
+
+        failure {
+            echo "❌ Pipeline FAILED"
         }
 
         always {
