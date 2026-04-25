@@ -60,7 +60,7 @@ pipeline {
 
         stage('Deploy to Staging') {
             steps {
-                echo "🚀 Deploying to STAGING (forced dev mode)"
+                echo "🚀 Deploying to STAGING (port 5001)"
 
                 withCredentials([
                     file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
@@ -83,18 +83,19 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                sh 'sleep 5 && curl -f http://localhost:5001/health'
+                echo "🔍 Checking API health..."
+                sh 'sleep 5 && curl -f http://localhost:5001/api/health'
             }
         }
     }
 
     post {
         success {
-            echo "Deployment SUCCESS"
+            echo "✅ Deployment SUCCESS 🚀"
         }
 
         failure {
-            echo "Deployment FAILED"
+            echo "❌ Deployment FAILED"
         }
 
         always {
