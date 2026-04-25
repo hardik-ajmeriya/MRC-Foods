@@ -13,7 +13,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -23,12 +22,31 @@ pipeline {
         stage('Detect Branch') {
             steps {
                 script {
-                    env.ACTUAL_BRANCH = sh(
-                        script: "git rev-parse --abbrev-ref HEAD",
-                        returnStdout: true
-                    ).trim()
+                    // In non-multibranch jobs checkout can be detached, so prefer Jenkins vars first.
+                    def detectedBranch = (env.BRANCH_NAME ?: env.GIT_BRANCH ?: env.CHANGE_BRANCH ?: '').trim()
 
-                    echo "🔥 Detected Branch: ${env.ACTUAL_BRANCH}"
+                    if (!detectedBranch) {
+                        detectedBranch = sh(
+                            script: "git branch -r --contains HEAD | sed -n 's#.*origin/##p' | head -n 1",
+                            returnStdout: true
+                        ).trim()
+                    }
+
+                    detectedBranch = detectedBranch
+                        .replaceFirst('^origin/', '')
+                        .replaceFirst('^refs/heads/', '')
+
+                    if (!detectedBranch || detectedBranch == 'HEAD') {
+                        error "Unable to resolve branch. BRANCH_NAME='${env.BRANCH_NAME}', GIT_BRANCH='${env.GIT_BRANCH}'"
+                    }
+
+                    env.ACTUAL_BRANCH = detectedBranch
+                    env.DEPLOY_TARGET = env.ACTUAL_BRANCH == 'dev'
+                        ? 'staging'
+                        : (env.ACTUAL_BRANCH == 'main' ? 'production' : 'none')
+
+                    echo "Detected branch: ${env.ACTUAL_BRANCH}"
+                    echo "Deploy target: ${env.DEPLOY_TARGET}"
                 }
             }
         }
@@ -71,56 +89,60 @@ pipeline {
             }
         }
 
-        stage('Deploy to Staging') {
+        stage('Deploy') {
             steps {
                 script {
+                    echo "Branch detected: ${env.ACTUAL_BRANCH}"
+                    echo "Deploy target: ${env.DEPLOY_TARGET}"
 
-                    echo "🔥 Branch detected: ${env.BRANCH_NAME}"
+                    if (env.DEPLOY_TARGET == 'staging') {
+                        echo "Deploying to STAGING (5001)"
 
-                    // ✅ DEV → STAGING
-                    if (env.BRANCH_NAME?.contains("dev")) {
+                        try {
+                            withCredentials([
+                                file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
+                            ]) {
+                                sh '''
+                                docker pull $IMAGE:$TAG
 
-                        echo "🚀 Deploying to STAGING (5001)"
+                                docker stop mrc-staging || true
+                                docker rm mrc-staging || true
 
-                withCredentials([
-                    file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
-                ]) {
-                    sh '''
-                    docker pull $IMAGE:$TAG
-
-                    docker stop mrc-staging || true
-                    docker rm mrc-staging || true
-
-                            docker run -d \
-                              --name mrc-staging \
-                              -p 5001:5000 \
-                              --env-file $ENV_FILE \
-                              $IMAGE:$TAG
-                            '''
+                                docker run -d \
+                                  --name mrc-staging \
+                                  -p 5001:5000 \
+                                  --env-file $ENV_FILE \
+                                  $IMAGE:$TAG
+                                '''
+                            }
+                        } catch (Exception ex) {
+                            error "Missing Jenkins credential 'mrc-staging-env' (type: Secret file)."
                         }
+                    } else if (env.DEPLOY_TARGET == 'production') {
+                        echo "Deploying to PRODUCTION (5000)"
 
-                    } 
-                    // ✅ MAIN → PRODUCTION
-                    else {
+                        try {
+                            withCredentials([
+                                file(credentialsId: 'mrc-prod-env', variable: 'ENV_FILE')
+                            ]) {
+                                sh '''
+                                docker pull $IMAGE:$TAG
 
-                        echo "🚀 Deploying to PRODUCTION (5000)"
+                                docker stop mrc-prod || true
+                                docker rm mrc-prod || true
 
-                        withCredentials([
-                            file(credentialsId: 'mrc-prod-env', variable: 'ENV_FILE')
-                        ]) {
-                            sh '''
-                            docker pull $IMAGE:$TAG
-
-                            docker stop mrc-prod || true
-                            docker rm mrc-prod || true
-
-                            docker run -d \
-                              --name mrc-prod \
-                              -p 5000:5000 \
-                              --env-file $ENV_FILE \
-                              $IMAGE:$TAG
-                            '''
+                                docker run -d \
+                                  --name mrc-prod \
+                                  -p 5000:5000 \
+                                  --env-file $ENV_FILE \
+                                  $IMAGE:$TAG
+                                '''
+                            }
+                        } catch (Exception ex) {
+                            error "Missing Jenkins credential 'mrc-prod-env' (type: Secret file)."
                         }
+                    } else {
+                        error "Unsupported branch '${env.ACTUAL_BRANCH}'. Only 'dev' and 'main' are deployable."
                     }
                 }
             }
@@ -129,15 +151,15 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-
-                    if (env.BRANCH_NAME?.contains("dev")) {
-                        echo "🔍 Checking STAGING health..."
+                    if (env.DEPLOY_TARGET == 'staging') {
+                        echo "Checking STAGING health..."
                         sh 'sleep 5 && curl -f http://localhost:5001/health'
-                    } else {
-                        echo "🔍 Checking PROD health..."
+                    } else if (env.DEPLOY_TARGET == 'production') {
+                        echo "Checking PROD health..."
                         sh 'sleep 5 && curl -f http://localhost:5000/health'
+                    } else {
+                        error "Health check skipped: unsupported deploy target '${env.DEPLOY_TARGET}'"
                     }
-
                 }
             }
         }
@@ -145,14 +167,14 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment successful 🚀"
+            echo 'Deployment successful.'
         }
 
         failure {
-            echo "❌ Deployment failed — rolling back"
+            echo 'Deployment failed. Starting rollback.'
 
             script {
-                if (env.BRANCH_NAME?.contains("dev")) {
+                if (env.DEPLOY_TARGET == 'staging') {
                     sh '''
                     docker stop mrc-staging || true
                     docker rm mrc-staging || true
@@ -162,7 +184,7 @@ pipeline {
                       -p 5001:5000 \
                       $IMAGE:latest
                     '''
-                } else {
+                } else if (env.DEPLOY_TARGET == 'production') {
                     sh '''
                     docker stop mrc-prod || true
                     docker rm mrc-prod || true
@@ -172,6 +194,8 @@ pipeline {
                       -p 5000:5000 \
                       $IMAGE:latest
                     '''
+                } else {
+                    echo 'Rollback skipped: no deploy target was selected.'
                 }
             }
         }
