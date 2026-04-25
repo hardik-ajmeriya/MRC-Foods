@@ -74,9 +74,9 @@ const connectDB = async () => {
       process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mrc_foods'
     );
 
-    console.log(`📊 MongoDB Connected: ${conn.connection.host}`);
+    console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error.message);
+    console.error('MongoDB connection error:', error.message);
     console.log('Server will continue running without DB.');
   }
 };
@@ -89,21 +89,21 @@ Socket.IO Events
 ---------------------------------------
 */
 io.on('connection', (socket) => {
-  console.log('👤 User connected:', socket.id);
+  console.log('User connected:', socket.id);
 
   socket.on('join-room', (room) => {
     socket.join(room);
-    console.log(`👤 User ${socket.id} joined room: ${room}`);
+    console.log(`User ${socket.id} joined room: ${room}`);
   });
 
   socket.on('update-order-status', (data) => {
-    console.log('📦 Order status update:', data);
+    console.log('Order status update:', data);
 
     io.emit('order-status-updated', data);
   });
 
   socket.on('disconnect', () => {
-    console.log('👋 User disconnected:', socket.id);
+    console.log('User disconnected:', socket.id);
   });
 });
 
@@ -166,7 +166,7 @@ Global Error Handler
 ---------------------------------------
 */
 app.use((err, req, res, next) => {
-  console.error('🚨 Error:', err.stack);
+  console.error('Error:', err.stack);
 
   res.status(500).json({
     success: false,
@@ -196,7 +196,7 @@ Server Start
 ---------------------------------------
 */
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
-  console.log(`📡 Socket.IO server running`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+  console.log(`Socket.IO server running`);
 });
