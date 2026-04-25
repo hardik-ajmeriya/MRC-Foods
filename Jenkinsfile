@@ -20,19 +20,6 @@ pipeline {
             }
         }
 
-        stage('Detect Branch') {
-            steps {
-                script {
-                    env.ACTUAL_BRANCH = sh(
-                        script: "git branch --show-current || echo dev",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "🔥 Detected Branch: ${env.ACTUAL_BRANCH}"
-                }
-            }
-        }
-
         stage('Build Image') {
             steps {
                 script {
@@ -72,11 +59,8 @@ pipeline {
         }
 
         stage('Deploy to Staging') {
-            when {
-                expression { env.ACTUAL_BRANCH == "dev" }
-            }
             steps {
-                echo "🚀 Deploying to STAGING (port 5001)"
+                echo "🚀 Deploying to STAGING (forced dev mode)"
 
                 withCredentials([
                     file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
@@ -97,33 +81,20 @@ pipeline {
             }
         }
 
-        stage('Health Check (Staging)') {
-            when {
-                expression { env.ACTUAL_BRANCH == "dev" }
-            }
+        stage('Health Check') {
             steps {
-                echo "🔍 Checking STAGING health..."
                 sh 'sleep 5 && curl -f http://localhost:5001/health'
-            }
-        }
-
-        stage('Skip Production') {
-            when {
-                expression { env.ACTUAL_BRANCH != "dev" }
-            }
-            steps {
-                echo "⚠️ Production deploy skipped (not main branch)"
             }
         }
     }
 
     post {
         success {
-            echo "✅ Pipeline SUCCESS 🚀"
+            echo "Deployment SUCCESS"
         }
 
         failure {
-            echo "❌ Pipeline FAILED"
+            echo "Deployment FAILED"
         }
 
         always {
