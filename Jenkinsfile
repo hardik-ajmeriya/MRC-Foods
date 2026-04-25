@@ -71,22 +71,25 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy to Staging') {
             steps {
                 script {
 
-                    if (env.ACTUAL_BRANCH == "dev") {
+                    echo "🔥 Branch detected: ${env.BRANCH_NAME}"
 
-                        echo "🚀 Deploying to STAGING"
+                    // ✅ DEV → STAGING
+                    if (env.BRANCH_NAME?.contains("dev")) {
 
-                        withCredentials([
-                            file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
-                        ]) {
-                            sh '''
-                            docker pull $IMAGE:$TAG
+                        echo "🚀 Deploying to STAGING (5001)"
 
-                            docker stop mrc-staging || true
-                            docker rm mrc-staging || true
+                withCredentials([
+                    file(credentialsId: 'mrc-staging-env', variable: 'ENV_FILE')
+                ]) {
+                    sh '''
+                    docker pull $IMAGE:$TAG
+
+                    docker stop mrc-staging || true
+                    docker rm mrc-staging || true
 
                             docker run -d \
                               --name mrc-staging \
@@ -96,9 +99,11 @@ pipeline {
                             '''
                         }
 
-                    } else {
+                    } 
+                    // ✅ MAIN → PRODUCTION
+                    else {
 
-                        echo "🚀 Deploying to PRODUCTION"
+                        echo "🚀 Deploying to PRODUCTION (5000)"
 
                         withCredentials([
                             file(credentialsId: 'mrc-prod-env', variable: 'ENV_FILE')
@@ -124,11 +129,15 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-                    if (env.ACTUAL_BRANCH == "dev") {
+
+                    if (env.BRANCH_NAME?.contains("dev")) {
+                        echo "🔍 Checking STAGING health..."
                         sh 'sleep 5 && curl -f http://localhost:5001/health'
                     } else {
+                        echo "🔍 Checking PROD health..."
                         sh 'sleep 5 && curl -f http://localhost:5000/health'
                     }
+
                 }
             }
         }
@@ -136,11 +145,35 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment successful"
+            echo "✅ Deployment successful 🚀"
         }
 
         failure {
-            echo "❌ Deployment failed"
+            echo "❌ Deployment failed — rolling back"
+
+            script {
+                if (env.BRANCH_NAME?.contains("dev")) {
+                    sh '''
+                    docker stop mrc-staging || true
+                    docker rm mrc-staging || true
+
+                    docker run -d \
+                      --name mrc-staging \
+                      -p 5001:5000 \
+                      $IMAGE:latest
+                    '''
+                } else {
+                    sh '''
+                    docker stop mrc-prod || true
+                    docker rm mrc-prod || true
+
+                    docker run -d \
+                      --name mrc-prod \
+                      -p 5000:5000 \
+                      $IMAGE:latest
+                    '''
+                }
+            }
         }
 
         always {
