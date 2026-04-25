@@ -153,10 +153,10 @@ pipeline {
                 script {
                     if (env.DEPLOY_TARGET == 'staging') {
                         echo "Checking STAGING health..."
-                        sh 'sleep 5 && curl -f http://localhost:5001/health'
+                        sh 'sleep 5 && curl -f http://localhost:5001/api/health'
                     } else if (env.DEPLOY_TARGET == 'production') {
                         echo "Checking PROD health..."
-                        sh 'sleep 5 && curl -f http://localhost:5000/health'
+                        sh 'sleep 5 && curl -f http://localhost:5000/api/health'
                     } else {
                         error "Health check skipped: unsupported deploy target '${env.DEPLOY_TARGET}'"
                     }
