@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+
+  backend:
+    image: hardik558/mrc-foods:latest
+    container_name: mrc-backend
+    ports:
+      - "5001:5000"
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:6
+    container_name: mrc-mongo
+    volumes:
+      - mongo-data:/data/db
+
+  nginx:
+    image: nginx:latest
+    container_name: mrc-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+
+volumes:
+  mongo-data:
