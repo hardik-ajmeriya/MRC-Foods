@@ -26,7 +26,7 @@ pipeline {
                     def detectedBranch = (env.BRANCH_NAME ?: env.GIT_BRANCH ?: env.CHANGE_BRANCH ?: '').trim()
 
                     if (!detectedBranch) {
-                        detectedBranch = bat(
+                        detectedBranch = batt(
                             script: "git branch -r --contains HEAD | sed -n 's#.*origin/##p' | head -n 1",
                             returnStdout: true
                         ).trim()
