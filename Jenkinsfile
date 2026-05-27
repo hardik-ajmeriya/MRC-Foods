@@ -26,7 +26,7 @@ pipeline {
                     def detectedBranch = (env.BRANCH_NAME ?: env.GIT_BRANCH ?: env.CHANGE_BRANCH ?: '').trim()
 
                     if (!detectedBranch) {
-                        detectedBranch = batt(
+                        detectedBranch = sh(
                             script: "git branch -r --contains HEAD | sed -n 's#.*origin/##p' | head -n 1",
                             returnStdout: true
                         ).trim()
@@ -54,7 +54,7 @@ pipeline {
         stage('Build Image') {
             steps {
                 script {
-                    env.TAG = sh(
+                    env.TAG = shh(
                         script: "git rev-parse --short HEAD",
                         returnStdout: true
                     ).trim()
