@@ -1,4 +1,5 @@
 import React from 'react';
+import { UtensilsCrossed } from 'lucide-react';
 
 const Splash = () => {
   return (
@@ -61,7 +62,7 @@ const Splash = () => {
               {/* Main circle */}
               <div className="w-80 h-80 bg-gradient-to-br from-orange-200/20 to-red-200/10 rounded-full flex items-center justify-center backdrop-blur-xl border border-orange-300/30 shadow-2xl">
                 <div className="w-64 h-64 bg-gradient-to-br from-orange-200/30 to-red-200/20 rounded-full flex items-center justify-center backdrop-blur-lg">
-                  <div className="text-8xl drop-shadow-2xl">🍽️</div>
+                  <UtensilsCrossed className="h-20 w-20 text-white drop-shadow-2xl" strokeWidth={1.5} />
                 </div>
               </div>
               

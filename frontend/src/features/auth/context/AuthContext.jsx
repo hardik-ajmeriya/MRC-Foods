@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(authService.getToken());
   const [isLoading, setIsLoading] = useState(true);
 
-  const bootstrapSession = useCallback(async () => {
+  const bootstrapSession = useCallback(async ({ signal } = {}) => {
     const storedToken = authService.getToken();
 
     if (!storedToken) {
@@ -32,12 +32,27 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
+    if (authService.isTokenExpired(storedToken)) {
+      authService.clearSession();
+      setToken(null);
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
     setToken(storedToken);
 
     try {
-      const response = await authService.getMe();
+      const response = await authService.getMe({
+        suppressErrorLogging: true,
+        signal
+      });
 
       if (response?.success && response?.user) {
+        if (signal?.aborted) {
+          return;
+        }
+
         setUser(response.user);
         localStorage.setItem('user', JSON.stringify(response.user));
       } else {
@@ -45,17 +60,29 @@ export const AuthProvider = ({ children }) => {
         setToken(null);
         setUser(null);
       }
-    } catch {
+    } catch (error) {
+      if (error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError') {
+        return;
+      }
+
       authService.clearSession();
       setToken(null);
       setUser(null);
     } finally {
-      setIsLoading(false);
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    bootstrapSession();
+    const controller = new AbortController();
+
+    bootstrapSession({ signal: controller.signal });
+
+    return () => {
+      controller.abort();
+    };
   }, [bootstrapSession]);
 
   const login = useCallback(async (credentials) => {

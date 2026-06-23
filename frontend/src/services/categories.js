@@ -2,8 +2,15 @@ import api from './api';
 
 export const categoryService = {
   // Get all categories
-  async getCategories(active = true) {
-    const endpoint = `/categories${active !== 'all' ? `?active=${active}` : '?active=all'}`;
+  async getCategories(active = true, search = '') {
+    const params = new URLSearchParams();
+    params.set('active', active !== undefined ? active : 'all');
+
+    if (search) {
+      params.set('search', search);
+    }
+
+    const endpoint = `/categories?${params.toString()}`;
     return api.get(endpoint);
   },
 

@@ -1,6 +1,6 @@
 const express = require('express');
 const Order = require('../models/Order');
-const MenuItem = require('../models/MenuItem');
+const Food = require('../models/Food');
 const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const router = express.Router();
 
@@ -31,21 +31,21 @@ router.post('/', protect, async (req, res) => {
     const orderItems = [];
     
     for (const item of items) {
-      const menuItem = await MenuItem.findById(item.menuItem);
-      if (!menuItem || !menuItem.isAvailable) {
+      const foodItem = await Food.findById(item.menuItem);
+      if (!foodItem || foodItem.isAvailable === false) {
         return res.status(400).json({
           success: false,
           message: `Menu item ${item.menuItem} is not available`
         });
       }
-      
-      const itemSubtotal = menuItem.price * item.quantity;
+
+      const itemSubtotal = foodItem.price * item.quantity;
       subtotal += itemSubtotal;
       
       orderItems.push({
-        menuItem: menuItem._id,
+        menuItem: foodItem._id,
         quantity: item.quantity,
-        price: menuItem.price,
+        price: foodItem.price,
         subtotal: itemSubtotal
       });
     }
@@ -159,7 +159,7 @@ router.get('/track/:id', async (req, res) => {
       ],
       isActive: true 
     })
-      .populate('items.menuItem', 'name price imageUrl category');
+      .populate('items.menuItem', 'name price image category');
     
     if (!order) {
       return res.status(404).json({

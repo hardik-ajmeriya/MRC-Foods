@@ -11,6 +11,47 @@ const clearSession = () => {
   localStorage.removeItem(AUTH_USER_KEY);
 };
 
+const parseTokenPayload = (token) => {
+  if (!token || typeof atob !== 'function') {
+    return null;
+  }
+
+  try {
+    const [, payload] = token.split('.');
+
+    if (!payload) {
+      return null;
+    }
+
+    const base64 = payload
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+    const paddedBase64 = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      '='
+    );
+
+    const decodedPayload = atob(paddedBase64);
+    return JSON.parse(decodedPayload);
+  } catch {
+    return null;
+  }
+};
+
+const isTokenExpired = (token) => {
+  if (!token) {
+    return true;
+  }
+
+  const payload = parseTokenPayload(token);
+
+  if (!payload?.exp) {
+    return false;
+  }
+
+  return payload.exp * 1000 <= Date.now();
+};
+
 const authService = {
   async login(credentials) {
     const response = await api.post('/auth/login', credentials);
@@ -32,8 +73,13 @@ const authService = {
     return response;
   },
 
-  async getMe() {
-    return api.get('/auth/me');
+  async getMe(options = {}) {
+    const { suppressErrorLogging = false, signal } = options;
+
+    return api.get('/auth/me', {
+      suppressErrorLogging,
+      signal
+    });
   },
 
   async logout() {
@@ -70,7 +116,9 @@ const authService = {
 
   isAuthenticated() {
     return Boolean(localStorage.getItem(AUTH_TOKEN_KEY));
-  }
+  },
+
+  isTokenExpired
 };
 
 export default authService;
