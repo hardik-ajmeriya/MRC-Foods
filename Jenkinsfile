@@ -54,7 +54,7 @@ pipeline {
         stage('Build Image') {
             steps {
                 script {
-                    env.TAG = sshh(
+                    env.TAG = ssshh(
                         script: "git rev-parse --short HEAD",
                         returnStdout: true
                     ).trim()
