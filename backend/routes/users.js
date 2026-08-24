@@ -1,19 +1,11 @@
 const express = require('express');
 const User = require('../models/User');
-const auth = require('../middleware/auth');
+const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 // Get all users (Admin only)
-router.get('/', auth, async (req, res) => {
+router.get('/', protect, authorizeRoles('admin'), async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin role required.'
-      });
-    }
-    
     const { page = 1, limit = 20, role, search } = req.query;
     
     let query = {};
@@ -60,7 +52,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile', auth, async (req, res) => {
+router.put('/profile', protect, async (req, res) => {
   try {
     const { name, phone } = req.body;
     const updates = {};
@@ -98,16 +90,8 @@ router.put('/profile', auth, async (req, res) => {
 });
 
 // Update user role (Admin only)
-router.patch('/:id/role', auth, async (req, res) => {
+router.patch('/:id/role', protect, authorizeRoles('admin'), async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin role required.'
-      });
-    }
-    
     const { role } = req.body;
     const validRoles = ['student', 'staff', 'admin'];
     
@@ -148,16 +132,8 @@ router.patch('/:id/role', auth, async (req, res) => {
 });
 
 // Deactivate user (Admin only)
-router.patch('/:id/deactivate', auth, async (req, res) => {
+router.patch('/:id/deactivate', protect, authorizeRoles('admin'), async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin role required.'
-      });
-    }
-    
     const user = await User.findByIdAndUpdate(
       req.params.id,
       { isActive: false },

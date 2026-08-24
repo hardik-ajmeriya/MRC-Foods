@@ -1,8 +1,7 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const Order = require('../models/Order');
-const MenuItem = require('../models/MenuItem');
-const auth = require('../middleware/auth');
+const Food = require('../models/Food');
+const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 // Test endpoint
@@ -16,7 +15,7 @@ router.get('/test', async (req, res) => {
 });
 
 // Create new order
-router.post('/', async (req, res) => {
+router.post('/', protect, async (req, res) => {
   try {
     const { items, customerName, specialInstructions } = req.body;
     
@@ -27,32 +26,26 @@ router.post('/', async (req, res) => {
       });
     }
     
-    // Mock user for testing (replace with actual auth later)
-    const mockUser = {
-      userId: new mongoose.Types.ObjectId('60d0fe4f5311236168a109ca'),
-      name: customerName || 'Guest User'
-    };
-    
     // Calculate totals and validate items
     let subtotal = 0;
     const orderItems = [];
     
     for (const item of items) {
-      const menuItem = await MenuItem.findById(item.menuItem);
-      if (!menuItem || !menuItem.isAvailable) {
+      const foodItem = await Food.findById(item.menuItem);
+      if (!foodItem || foodItem.isAvailable === false) {
         return res.status(400).json({
           success: false,
           message: `Menu item ${item.menuItem} is not available`
         });
       }
-      
-      const itemSubtotal = menuItem.price * item.quantity;
+
+      const itemSubtotal = foodItem.price * item.quantity;
       subtotal += itemSubtotal;
       
       orderItems.push({
-        menuItem: menuItem._id,
+        menuItem: foodItem._id,
         quantity: item.quantity,
-        price: menuItem.price,
+        price: foodItem.price,
         subtotal: itemSubtotal
       });
     }
@@ -70,8 +63,8 @@ router.post('/', async (req, res) => {
     
     const order = new Order({
       orderNumber,
-      customer: mockUser.userId,
-      customerName: customerName || mockUser.name,
+      customer: req.user.userId,
+      customerName: customerName || req.user.name,
       items: orderItems,
       subtotal,
       serviceFee,
@@ -115,7 +108,7 @@ router.post('/', async (req, res) => {
 });
 
 // Get user's orders
-router.get('/my-orders', auth, async (req, res) => {
+router.get('/my-orders', protect, async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
     
@@ -166,7 +159,7 @@ router.get('/track/:id', async (req, res) => {
       ],
       isActive: true 
     })
-      .populate('items.menuItem', 'name price imageUrl category');
+      .populate('items.menuItem', 'name price image category');
     
     if (!order) {
       return res.status(404).json({
@@ -193,7 +186,7 @@ router.get('/track/:id', async (req, res) => {
 });
 
 // Get single order
-router.get('/:id', auth, async (req, res) => {
+router.get('/:id', protect, async (req, res) => {
   try {
     let query = { _id: req.params.id, isActive: true };
     
@@ -229,18 +222,10 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // Update order status (Staff/Admin only)
-router.patch('/:id/status', auth, async (req, res) => {
+router.patch('/:id/status', protect, authorizeRoles('staff', 'admin'), async (req, res) => {
   try {
-    // Check if user is staff or admin
-    if (req.user.role === 'student') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Staff or Admin role required.'
-      });
-    }
-    
     const { status } = req.body;
-    const validStatuses = ['pending', 'confirmed', 'preparing', 'ready', 'completed', 'cancelled'];
+    const validStatuses = ['pending', 'accepted', 'preparing', 'ready', 'completed', 'cancelled'];
     
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
@@ -287,7 +272,7 @@ router.patch('/:id/status', auth, async (req, res) => {
 });
 
 // Cancel order
-router.patch('/:id/cancel', auth, async (req, res) => {
+router.patch('/:id/cancel', protect, async (req, res) => {
   try {
     let query = { _id: req.params.id, isActive: true };
     
@@ -333,7 +318,7 @@ router.patch('/:id/cancel', auth, async (req, res) => {
 });
 
 // Update order status (for staff)
-router.put('/:id/status', async (req, res) => {
+router.put('/:id/status', protect, authorizeRoles('staff', 'admin'), async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -402,7 +387,7 @@ router.put('/:id/status', async (req, res) => {
 });
 
 // Get all orders (for staff)
-router.get('/', async (req, res) => {
+router.get('/', protect, authorizeRoles('staff', 'admin'), async (req, res) => {
   try {
     console.log('📋 GET /api/orders called');
     const { page = 1, limit = 50, status } = req.query;

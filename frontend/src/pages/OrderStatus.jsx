@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import io from 'socket.io-client';
+import api from '../services/api';
 
 const OrderStatus = () => {
   const navigate = useNavigate();
@@ -21,38 +22,30 @@ const OrderStatus = () => {
       
       // First try to get by order ID if available using the tracking endpoint
       if (orderId) {
-        const response = await fetch(`http://localhost:5000/api/orders/track/${orderId}`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Order data fetched by ID:', data);
-          if (data.success) {
-            return data.order;
-          }
+        const data = await api.get(`/orders/track/${orderId}`);
+        console.log('Order data fetched by ID:', data);
+        if (data.success) {
+          return data.order;
         }
       }
       
       // Try by order number
       if (orderNumber) {
         const cleanOrderNumber = orderNumber.replace('#', '');
-        const response = await fetch(`http://localhost:5000/api/orders/track/${cleanOrderNumber}`);
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Order data fetched by number:', data);
-          if (data.success) {
-            return data.order;
-          }
+        const data = await api.get(`/orders/track/${cleanOrderNumber}`);
+        console.log('Order data fetched by number:', data);
+        if (data.success) {
+          return data.order;
         }
       }
       
-      // If no specific order provided, get the latest order from the database
-      console.log('No specific order provided, fetching latest order...');
-      const response = await fetch('http://localhost:5000/api/orders');
-      const data = await response.json();
-      console.log('All orders fetched:', data);
+      // If no specific order was provided, fetch latest order for current user.
+      console.log('No specific order provided, fetching latest order for current user...');
+      const data = await api.get('/orders/my-orders');
+      console.log('User orders fetched:', data);
       
-      if (data.success && data.orders && data.orders.length > 0) {
-        // Get the most recent order (orders are sorted by createdAt desc)
-        const latestOrder = data.orders[0];
+      if (data.success && data.data && data.data.length > 0) {
+        const latestOrder = data.data[0];
         console.log('Using latest order:', latestOrder);
         return latestOrder;
       }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Activity, ClipboardList, Home, UserRound } from 'lucide-react';
 import { authService } from '../services/auth';
 import { useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
+import api from '../services/api';
 
 const StaffDashboard = () => {
   const navigate = useNavigate();
@@ -39,9 +41,7 @@ const StaffDashboard = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/orders');
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
+      const data = await api.get('/orders');
       if (data.success) setOrders(data.orders);
       else setOrders([]);
     } catch (error) {
@@ -82,12 +82,9 @@ const StaffDashboard = () => {
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       setUpdatingOrders(prev => new Set([...prev, orderId]));
-      const response = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
+      const data = await api.put(`/orders/${orderId}/status`, {
+        status: newStatus
       });
-      const data = await response.json();
       if (data.success) {
         setOrders(prev => 
           prev.map(order => 
@@ -208,7 +205,8 @@ const StaffDashboard = () => {
                 onClick={() => setShowLoginModal(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-orange-500/80 rounded-lg hover:bg-orange-500 transition-colors duration-200"
               >
-                👤 Manager Login
+                <UserRound className="h-4 w-4" strokeWidth={2.2} />
+                Manager Login
               </button>
             )}
             
@@ -216,13 +214,15 @@ const StaffDashboard = () => {
               onClick={testBackendConnection}
               className="flex items-center gap-2 px-4 py-2 bg-blue-500/80 rounded-lg hover:bg-blue-500 transition-colors duration-200"
             >
+              <Activity className="h-4 w-4" strokeWidth={2.2} />
               Test API
             </button>
             <button 
               onClick={() => navigate('/')} 
               className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-lg hover:bg:white/30 transition-colors duration-200"
             >
-              🏠 Home
+              <Home className="h-4 w-4" strokeWidth={2.2} />
+              Home
             </button>
           </div>
         </div>
@@ -256,7 +256,9 @@ const StaffDashboard = () => {
       <div className="px-2 py-4 sm:px-6 sm:py-6 space-y-4">
         {filterOrders(orders).length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">📋</div>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+              <ClipboardList className="h-8 w-8" strokeWidth={1.8} />
+            </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
             <p className="text-gray-500">Orders will appear here when customers place them.</p>
           </div>

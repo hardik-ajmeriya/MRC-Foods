@@ -1,7 +1,7 @@
 const express = require('express');
 const MenuItem = require('../models/MenuItem');
 const Category = require('../models/Category');
-const auth = require('../middleware/auth');
+const { protect, authorizeRoles } = require('../middleware/authMiddleware');
 const router = express.Router();
 
 // Get all menu items with category filter
@@ -93,16 +93,8 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create menu item (Admin/Staff only)
-router.post('/', auth, async (req, res) => {
+router.post('/', protect, authorizeRoles('admin', 'staff'), async (req, res) => {
   try {
-    // Check if user is admin or staff
-    if (req.user.role !== 'admin' && req.user.role !== 'staff') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin or Staff role required.'
-      });
-    }
-    
     const menuItem = new MenuItem(req.body);
     await menuItem.save();
     await menuItem.populate('category');
@@ -124,16 +116,8 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Update menu item (Admin/Staff only)
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', protect, authorizeRoles('admin', 'staff'), async (req, res) => {
   try {
-    // Check if user is admin or staff
-    if (req.user.role !== 'admin' && req.user.role !== 'staff') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin or Staff role required.'
-      });
-    }
-    
     const menuItem = await MenuItem.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -164,16 +148,8 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // Delete menu item (Admin only)
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', protect, authorizeRoles('admin'), async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin role required.'
-      });
-    }
-    
     const menuItem = await MenuItem.findByIdAndDelete(req.params.id);
     
     if (!menuItem) {

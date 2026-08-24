@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Minus, Plus, ShoppingCart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import { resolveFoodImage } from '../utils/resolveImage';
 
 const Cart = () => {
   const navigate = useNavigate();
   const [customerName, setCustomerName] = useState('');
   const [specialInstructions, setSpecialInstructions] = useState('');
-  const [menuItems, setMenuItems] = useState([]);
+  const [foodItems, setFoodItems] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Get cart from localStorage
@@ -21,25 +24,31 @@ const Cart = () => {
 
   // Fetch menu items from API
   useEffect(() => {
-    const fetchMenuItems = async () => {
+    const fetchFoodItems = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/menu');
-        const data = await response.json();
-        if (data.success) {
-          setMenuItems(data.data);
-        }
+        const data = await api.get('/foods');
+        const items = Array.isArray(data) ? data : data?.data || [];
+        const normalizedItems = items.map((item) => ({
+          ...item,
+          image: resolveFoodImage({
+            image: item?.image,
+            categoryId: item?.category,
+            categoryName: item?.category
+          })
+        }));
+        setFoodItems(normalizedItems);
       } catch (error) {
-        console.error('Error fetching menu items:', error);
+        console.error('Error fetching food items:', error);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchMenuItems();
+    fetchFoodItems();
   }, []);
 
   const cartItems = Object.entries(cart).map(([itemId, quantity]) => {
-    const item = menuItems.find(item => item._id === itemId);
+    const item = foodItems.find(item => item._id === itemId);
     return item ? { ...item, quantity } : null;
   }).filter(item => item && item.quantity > 0);
 
@@ -86,17 +95,7 @@ const Cart = () => {
         specialInstructions: specialInstructions.trim()
       };
 
-      // Make API call to create order (with mock token for now)
-      const response = await fetch('http://localhost:5000/api/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-token' // You can implement proper auth later
-        },
-        body: JSON.stringify(orderData)
-      });
-
-      const result = await response.json();
+      const result = await api.post('/orders', orderData);
       
       if (result.success) {
         // Clear cart and navigate to order status with real order data
@@ -146,9 +145,7 @@ const Cart = () => {
               onClick={() => navigate('/')} 
               className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors duration-200"
             >
-              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeft className="h-5 w-5 text-slate-600" strokeWidth={2.2} />
             </button>
             <h1 className="text-xl font-semibold text-slate-800">My Cart</h1>
             <div className="w-10 h-10" /> {/* Spacer */}
@@ -159,10 +156,7 @@ const Cart = () => {
         <div className="flex flex-col items-center justify-center px-6 py-20 max-w-md mx-auto">
           <div className="relative mb-8">
             <div className="w-24 h-24 bg-gradient-to-br from-orange-100 to-orange-200 rounded-3xl flex items-center justify-center mb-2">
-              <svg className="w-12 h-12 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} 
-                      d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5L17 18m-10-5v0m10 0v0" />
-              </svg>
+              <ShoppingCart className="h-12 w-12 text-orange-400" strokeWidth={1.6} />
             </div>
           </div>
           
@@ -193,9 +187,7 @@ const Cart = () => {
             onClick={() => navigate('/')} 
             className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors duration-200"
           >
-            <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+              <ArrowLeft className="h-5 w-5 text-slate-600" strokeWidth={2.2} />
           </button>
           <h1 className="text-xl font-semibold text-slate-800">My Cart</h1>
           <div className="flex items-center gap-1">
@@ -233,9 +225,7 @@ const Cart = () => {
                     onClick={() => updateQuantity(item._id, item.quantity - 1)}
                     className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors duration-200"
                   >
-                    <svg className="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                    </svg>
+                    <Minus className="h-4 w-4 text-slate-600" strokeWidth={2.2} />
                   </button>
                   
                   <span className="w-8 text-center font-semibold text-slate-800 text-lg">
@@ -246,9 +236,7 @@ const Cart = () => {
                     onClick={() => updateQuantity(item._id, item.quantity + 1)}
                     className="w-8 h-8 rounded-full bg-orange-500 hover:bg-orange-600 flex items-center justify-center transition-colors duration-200"
                   >
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
+                    <Plus className="h-4 w-4 text-white" strokeWidth={2.2} />
                   </button>
                 </div>
               </div>
